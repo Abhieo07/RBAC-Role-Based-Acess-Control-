@@ -49,45 +49,44 @@ class VerifyOTP(APIView):
     def post(self, request):
         try:
             data = request.data
-            serializer = VerifyAccountSerializer(data = data)
+            serializer = VerifyAccountSerializer(data=data)
             if serializer.is_valid():
-                email = serializer.data['email']
-                otp = serializer.data['otp']
+                email = serializer.validated_data['email']
+                otp = serializer.validated_data['otp']
 
-                user = User.objects.filter(email=email)
-                if not  user.exists():
+                user = User.objects.filter(email=email).first()
+                if not user:
                     return Response({
                         'status': 400,
-                        'message': 'something went wrong',
-                        'data': 'invalid email'
-                    })
-                
-                if not user[0].otp == otp:
+                        'message': 'Invalid email'
+                    }, status=400)
+
+                if user.otp != otp:
                     return Response({
                         'status': 400,
-                        'message': 'something went wrong',
-                        'data': 'entered otp is wrong'
-                    })
-                
+                        'message': 'Incorrect OTP'
+                    }, status=400)
 
-                user = user.first()
                 user.is_verified = True
                 user.save()
 
                 return Response({
                     'status': 200,
-                    'message' : 'account verified',
-                    'data' : {},
-                })
-            
+                    'message': 'Account verified successfully'
+                }, status=200)
+
             return Response({
                 'status': 400,
-                'message': 'something went wrong',
-                'data': serializer.errors
-            })
+                'message': 'Invalid data',
+                'errors': serializer.errors
+            }, status=400)
 
         except Exception as e:
             print(e)
+            return Response({
+                'status': 500,
+                'message': 'An error occurred'
+            }, status=500)
 
 
 class LoginAPI(APIView):

@@ -19,7 +19,7 @@ Project Listings
         </div>
         {% endfor %}
         {% if perms.project.can_add_new_project  %}
-          <a href="/project/new" class="btn btn-primary btn-lg px-4 gap-3" role="button" aria-disabled="true">New Project</a>
+          <a href="{% url 'project:create_project' %}" class="btn btn-primary btn-lg px-4 gap-3" role="button" aria-disabled="true">New Project</a>
         {% endif %}
     </div>
   </div>

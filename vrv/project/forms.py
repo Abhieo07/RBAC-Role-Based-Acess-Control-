@@ -28,3 +28,11 @@ class RegistrationForm(UserCreationForm):
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email')
     password = forms.CharField(widget=forms.PasswordInput, label='Password')
+
+class OTPVerificationForm(forms.Form):
+    otp = forms.CharField(
+        max_length=6, 
+        min_length=6, 
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Enter the 6-digit OTP sent to your email"
+    )

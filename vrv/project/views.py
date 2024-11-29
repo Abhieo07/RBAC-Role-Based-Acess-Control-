@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.views import View
 from django.views.generic import TemplateView, ListView, DetailView, CreateView
 from django.shortcuts import get_object_or_404
-from .forms import ProjectForm, LoginForm, RegistrationForm
+from .forms import ProjectForm, LoginForm, RegistrationForm, OTPVerificationForm
 from .models import Project
 
 
@@ -39,7 +39,7 @@ class CreateProjectView(LoginRequiredMixin, PermissionRequiredMixin, CreateView)
         return super().form_valid(form)
 
     def get_success_url(self):
-        return reverse("project:project")
+        return reverse("project:projects")
 
 
 from django.contrib import messages
@@ -70,11 +70,12 @@ class LoginView(View):
                     f"{settings.API_BASE_URL}/api/login/",
                     data={'email': email, 'password': password}
                 )
-                if response.status_code == 200:
-                    tokens = response.json()
+                response_data = response.json()
 
-                    # Authenticate and log in user locally
+                if response.status_code == 200:
+                    tokens = response_data
                     user = authenticate(request, email=email, password=password)
+
                     if user:
                         login(request, user)
                         request.session['access_token'] = tokens['access']
@@ -84,6 +85,14 @@ class LoginView(View):
                     else:
                         messages.error(request, 'Unable to authenticate user locally.')
 
+                elif response.status_code == 400:
+                    if response_data.get('message') == 'your account is not verified':
+                        request.session['registration_email'] = email
+                        messages.warning(request, 'Your account is not verified. Please verify your OTP.')
+                        return redirect('project:verify_otp')
+                    
+                    # Generic error message
+                    messages.error(request, response_data.get('message', 'Login failed.'))
                 else:
                     messages.error(request, 'Invalid credentials.')
 
@@ -91,7 +100,6 @@ class LoginView(View):
                 messages.error(request, 'Network error. Please try again.')
 
         return render(request, 'login.html', {'form': form})
-
 
 class LogoutView(View):
     def get(self, request):
@@ -130,18 +138,64 @@ class RegisterView(View):
                     data={
                         'email': form.cleaned_data['email'],
                         'name': form.cleaned_data['name'],
-                        'password': form.cleaned_data['password'],
-                        'password2': form.cleaned_data['password']
+                        'password': form.cleaned_data['password1'],
+                        'password2': form.cleaned_data['password2']
                     }
                 )
                 
                 if response.status_code == 200:
+                    request.session['registration_email'] = form.cleaned_data['email']
                     messages.success(request, 'Registration successful. Please verify your email.')
-                    return redirect('project:login')
+                    return redirect('project:verify_otp') 
                 else:
-                    messages.error(request, 'Registration failed')
+                    response_data = response.json()
+                    messages.error(request, response_data.get('message', 'Registration failed'))
             
             except requests.RequestException:
                 messages.error(request, 'Network error. Please try again.')
         
         return render(request, 'register.html', {'form': form})
+
+class OTPVerificationView(View):
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('project:index')
+        
+        if 'registration_email' not in request.session:
+            messages.warning(request, 'Please register first')
+            return redirect('project:register')
+        
+        form = OTPVerificationForm()
+        return render(request, 'verify_otp.html', {'form': form})
+
+    def post(self, request):
+        if 'registration_email' not in request.session:
+            messages.error(request, 'No registration process found')
+            return redirect('project:register')
+        
+        form = OTPVerificationForm(request.POST)
+        if form.is_valid():
+            try:
+                response = requests.post(
+                    f'{settings.API_BASE_URL}/api/verify/',
+                    data={
+                        'email': request.session['registration_email'],
+                        'otp': form.cleaned_data['otp']
+                    }
+                )
+                
+                if response.status_code == 200:
+                    del request.session['registration_email']
+                    messages.success(request, 'Account verified successfully. Please login.')
+                    return redirect('project:login')
+                elif response.status_code == 400:
+                    response_data = response.json()
+                    messages.error(request, response_data.get('message', 'Verification failed.'))
+                else:
+                    messages.error(request, 'An unexpected error occurred. Please try again.')
+            
+            except requests.RequestException:
+                messages.error(request, 'Network error. Please try again.')
+        
+        return render(request, 'verify_otp.html', {'form': form})
+
