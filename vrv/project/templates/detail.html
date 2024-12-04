@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}
+Project Detail
+{% endblock %}
+{% block content %}
+{% if messages %}
+{% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+{% endfor %}
+{% endif %}
+    <div class="px-4 py-5 my-5 text-center">
+        <h1 class="display-5 fw-bold">{{detail.name}}</h1>
+        <div class="col-lg-6 mx-auto">
+          <p class="lead mb-4">A project is any undertaking, carried out individually or collaboratively and possibly involving research or design, that is carefully planned to achieve a particular aim. Wikipedia</p>
+          {% if perms.project.change_project  %}
+            <form id="assign-member-form" method="POST" action="{% url 'project:assign' detail.id %}" enctype="multipart/form-data">
+              {% csrf_token %}
+              <input type="email" name="email" placeholder="Enter user email" required>
+              <button type="submit" class="btn btn-primary">Assign Member</button>
+            </form>
+          
+          {% endif %}
+          {% for user in assigned_users %}
+            <div>
+              {{ user }}
+              <form method="post" action="{% url 'project:ban' detail.id %}">
+                {% csrf_token %}
+                {% if perms.project.change_project  %}
+                <button
+                  type="submit"
+                  class="btn btn-warning"
+                  name="user_id"
+                  value="{{user.id}}"
+                >
+                  Ban User
+                </button>
+                {% endif %}
+              </form>
+            </div>
+          {% endfor %}
+          <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            {% if perms.project.delete_project  %}
+            <form method="post" action="{% url 'project:ban' detail.id %}">
+              {% csrf_token %}
+              {% if not detail.is_completed %}
+              <button 
+                type="submit" 
+                class="btn btn-success btn-lg px-4 gap-3"
+                name="is_completed"
+                value="{{ detail.is_completed }}"
+                >Complete</button>
+              {% endif %}
+            </form>
+            {% endif %}
+            {% if perms.auth.change_user and request.user != detail.user and is_manager_active %}
+            <form method="post" action="{% url 'project:ban' detail.id %}">
+              {% csrf_token %}
+              <button 
+                type="submit" 
+                class="btn btn-danger btn-lg px-4"
+                name="project_id"
+                value="{{ detail.id }}"
+                >Ban Manager</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+    <div class="container-cred">
+        <h2>Hello, <strong>{{ user.name }}</strong></h2>
+        <h3>Id: {{ profile.id }}</h3>
+        <h3>Email: {{ profile.email }}</h3>
+        <h3>Verified: {{ profile.is_verified }}</h3>
+    </div>
+{% endblock %}
